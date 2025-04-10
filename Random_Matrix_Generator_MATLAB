@@ -65,9 +65,9 @@ end
 
 Y = [Y1m,y_off;y_offt,Y2m];
 spy(Y);
-chol(Y1);
-chol(Y2);
-chol(Y);
+% chol(Y1);
+% chol(Y2);
+% chol(Y);
 [Y_p,iY_p,jY_p] = CSR(Y);
 writematrix(Y_p,'Y_p.txt');
 writematrix(iY_p,'iY_p.txt');
