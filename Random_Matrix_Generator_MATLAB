@@ -1,0 +1,259 @@
+% function V0 = RandomMatrix(N1,N2,density, change)
+clear;
+N1 = 200; N2 = 221; density = 0.000005; 
+change = 100; link = 25;
+y_off = zeros(N1,N2);
+y_offt = zeros(N2,N1);
+S = -1.04*rand(link,1);
+
+Y1 =  -abs(sprandsym(N1,density));
+Y1m = Y1;
+diag1 = 1.05*rand(N1,1);
+offdiag1 = sum(Y1,2);
+non1val = 1.08*rand(N1,1);
+idx1 = randperm(N1);
+for a = 1 : N1
+    if offdiag1(a,1) == 0
+        val = non1val(a,1);
+        m = idx1(1,a);
+        Y1(a,a) = Y1(a,a)+diag1(a,1)+val;
+        Y1(m,m) = Y1(m,m)+val;
+        Y1(a,m) =  - val;
+        Y1(m,a) =  - val;
+        Y1m(a,a) = Y1m(a,a)+diag1(a,1)+val;
+        Y1m(m,m) = Y1m(m,m)+val;
+        Y1m(a,m) = - val;
+        Y1m(m,a) = - val;
+    else
+        Y1(a,a) = Y1(a,a)+diag1(a,1) - offdiag1(a,1);
+        Y1m(a,a) = Y1m(a,a)+diag1(a,1) - offdiag1(a,1);
+    end
+end
+
+Y2 =  -abs(sprandsym(N2,density));
+Y2m = Y2;
+diag2 = 1.05*rand(N2,1);
+offdiag2 = sum(Y2,2);
+non2val = 1.08*rand(N2,1);
+idx2 = randperm(N2);
+for a = 1 : N2
+    if offdiag2(a,1) == 0
+        val = non2val(a,1);
+        m = idx2(1,a);
+        Y2(a,a) = Y2(a,a)+diag2(a,1)+val;
+        Y2(m,m) = Y2(m,m)+val;
+        Y2(a,m) =  - val;
+        Y2(m,a) =  - val;
+        Y2m(a,a) = Y2m(a,a)+diag2(a,1)+val;
+        Y2m(m,m) = Y2m(m,m)+val;
+        Y2m(a,m) = - val;
+        Y2m(m,a) = - val;
+    else
+        Y2(a,a) = Y2(a,a)+diag2(a,1) - offdiag2(a,1);
+        Y2m(a,a) = Y2m(a,a)+diag2(a,1) - offdiag2(a,1);
+    end
+end
+
+for a = 1 : link
+    m = randi([1,N1]); n = randi([1,N2]);
+    val_link = rand*1.08;
+    y_off(m,n) = -val_link;
+    y_offt(n,m) = -val_link;
+    Y1m(m,m) = Y1m(m,m) + val_link;
+    Y2m(n,n) = Y2m(n,n) + val_link;
+end
+
+Y = [Y1m,y_off;y_offt,Y2m];
+spy(Y);
+chol(Y1);
+chol(Y2);
+chol(Y);
+[Y_p,iY_p,jY_p] = CSR(Y);
+writematrix(Y_p,'Y_p.txt');
+writematrix(iY_p,'iY_p.txt');
+writematrix(jY_p,'jY_p.txt');
+
+y_use =  sparse(y_off);
+[r,c,val] = find(y_use);
+P = zeros(N1,nnz(y_use));
+Q = zeros(N2,nnz(y_use));
+for a = 1 : nnz(y_use)
+    P(r(a,1),a) = 1;
+    Q(c(a,1),a) = -1;
+end
+z = diag(val);
+chg = zeros(change,3);
+chan = randperm(N1,change*2);
+chanval = 1.08*rand(change,1);
+for a = 1 : change
+    chg(a,1) = chan(2*a-1);
+    chg(a,2) = chan(2*a);
+    chg(a,3) = chanval(a,1);
+end
+b0 = 6*rand(N1+N2,1);
+b1 = b0(1:N1,1);
+b2 = b0(N1+1:N2+N1,1);
+
+Y0 = Y1;
+Ain1 = Y0\eye(size(Y1,1));
+Ain2 = Y2\eye(size(Y2,1));
+Ain = Y\eye(size(Y,1));
+B = Ain2*Q;
+A_d = Ain1*P;
+zB = transpose(Q)*B+z;
+U1 = zeros(size(Y1,1),4*change);
+U = zeros(size(Y,1),4*change);
+V1 = U1;
+V = U;
+k = 1;
+for a = 1 : change
+    r = chg(a,1); c = chg(a,2); val = chg(a,3);
+    Y1(r,r) = Y1(r,r)+val;
+    Y(r,r) = Y(r,r)+val;
+    U1(r,k) = 1;
+    V1(r,k) = val;
+    U(r,k) = 1;
+    V(r,k) = val;
+    k = k + 1;
+    Y1(c,c) = Y1(c,c)+val;
+    Y(c,c) = Y(c,c)+val;
+    U1(c,k) = 1;
+    V1(c,k) = val;
+    U(c,k) = 1;
+    V(c,k) = val;
+    k = k + 1;
+    Y1(r,c) = Y1(r,c)-val;
+    Y(r,c) = Y(r,c)-val;
+    U1(r,k) = 1;
+    V1(c,k) = -val;
+    U(r,k) = 1;
+    V(c,k) = -val;
+    k = k + 1;
+    Y1(c,r) = Y1(c,r)-val;
+    Y(c,r) = Y(c,r)-val;
+    U1(c,k) = 1;
+    V1(r,k) = -val;
+    U(c,k) = 1;
+    V(r,k) = -val;
+    k = k + 1;
+end
+OL11 = Ain1*U1;
+Vt1 = transpose(V1);
+OL1 = Ain*U;
+Vt = transpose(V);
+
+tic;
+x0 = Ain1*b1; % cublasDspmv
+M = eye(4*change)+Vt1*OL11; % cublasDgemm
+v1 = x0-OL11*(M\Vt1)*x0;
+A = A_d-OL11*(M\Vt1)*A_d;
+
+%% Section 2
+v2 = Ain2*b2;
+
+zalpha = transpose(P)*A+zB;
+ealpha = transpose(P)*v1+transpose(Q)*v2;
+ialpha = zalpha\ealpha;
+
+v1 = v1 - A*ialpha;
+v2 = v2 - B*ialpha;
+toc;
+
+fprintf('The link value :  %d\n', size(z,1));
+
+V_mate = [v1;v2];
+V0 = Y\b0;
+Z1 = Conv(Ain1);
+% writematrix(Z1,'Zin1.txt');
+Z2 = Conv(Ain2);
+% writematrix(Z2,'Zin2.txt');
+Z = Conv(Ain);
+% writematrix(Z,'Zin.txt');
+% OL11 = transpose(reshape(OL11,[],1)); writematrix(OL11,'OL11.txt');
+% Vt1 = transpose(reshape(Vt1,[],1)); writematrix(Vt1,'Vt1.txt');
+% OL1 = transpose(reshape(OL1,[],1)); writematrix(OL1,'OL1.txt');
+% Vt = transpose(reshape(Vt,[],1)); writematrix(Vt,'Vt.txt');
+% A_d = transpose(reshape(A_d,[],1)); writematrix(A_d,'A_d.txt');
+% B = transpose(reshape(B,[],1)); writematrix(B,'B.txt');
+% zB = transpose(reshape(zB,[],1)); writematrix(zB,'zB.txt');
+[bsrRowP,bsrColP,bsrValP] = spa(P);
+% writematrix(bsrRowP,'iP.txt');
+% writematrix(bsrColP,'jP.txt');
+% writematrix(bsrValP,'P.txt');
+[bsrRowQ,bsrColQ,bsrValQ] = spa(Q);
+% writematrix(bsrRowQ,'iQ.txt');
+% writematrix(bsrColQ,'jQ.txt');
+% writematrix(bsrValQ,'Q.txt');
+% writematrix(b1,'b1.txt');
+% writematrix(b2,'b2.txt');
+% writematrix(b0,'b0.txt');
+% end
+
+function yalpha = Conv(A)
+k = 1;
+for a = 1 : size(A,1)
+    for b = a : size(A,1)
+        yalpha(k) = A(b,a);
+        k = k + 1;
+    end
+end
+end
+
+function [bsrRow,bsrCol,bsrVal] = spa(P)
+Pt = transpose(P);
+k = 1; kc = 1; kr = 2;
+bsrRow(1) = 0;
+for row = 1 : size(Pt,1)/2
+    a = 2*row-1;
+    for col = 1 : size(Pt,2)/2
+        b = 2*col-1;
+        subMatrix = [Pt(a,b),Pt(a,b+1);Pt(a+1,b),Pt(a+1,b+1)];
+        if nnz(subMatrix) > 0
+            bsrCol(kc) = col - 1;
+            kc = kc + 1;
+            bsrVal(k) = subMatrix(1,1);
+            k = k + 1;
+            bsrVal(k) = subMatrix(1,2);
+            k = k + 1;
+            bsrVal(k) = subMatrix(2,1);
+            k = k + 1;
+            bsrVal(k) = subMatrix(2,2);
+            k = k + 1;
+        end
+    end
+    bsrRow(kr) = kc-1;
+    kr = kr + 1;
+end
+end
+
+function [Y_p,iY_p,jY_p] = CSR(Y)
+% Y = full(Y);
+b = 1;
+nne = (nnz(Y)-size(Y,1))/2+size(Y,1);
+Y_p = zeros(1,nne);
+jY_p = zeros(1,nne);
+iY_p = zeros(1,size(Y,1)+1);
+m = 2;
+iY_p(1,1) = 1;
+for p = 1 : size(Y,1)
+    Y_p(1,b) = Y(p,p);
+    jY_p(1,b) = p;
+    b = b + 1;
+    for q = p + 1 : size(Y,2)
+        if Y(p,q) ~= 0
+            Y_p(1,b) = Y(p,q);
+            jY_p(1,b) = q;
+            b = b + 1;
+        end
+    end
+    iY_p(1,m) = b;
+    m = m + 1; 
+end
+Y_p(Y_p == 0) = [];
+jY_p(jY_p == 0) = []; 
+Ynne = nnz(Y_p);
+jY_one = ones(1,Ynne);
+iY_one = ones(1,size(Y,1)+1);
+jY_p = jY_p - jY_one;
+iY_p = iY_p - iY_one;
+end
